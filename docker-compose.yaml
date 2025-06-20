@@ -1,32 +1,35 @@
 services:
   db:
-    image: postgres:14
-    environment:
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_DB: ${DB_NAME:-interior_db}
+    image: postgres:14-alpine
     volumes:
-      - ./deploy/schema.sql:/docker-entrypoint-initdb.d/init.sql
-      - pg_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+      - postgres_data:/var/lib/postgresql/data/
+      - ./deploy:/docker-entrypoint-initdb.d/
+    environment:
+      POSTGRES_DB: ${DB_NAME:-interior_db}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-interior_db}"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
       retries: 5
+    ports:
+      - "5432:5432"
 
   app:
-    build: 
+    build:
       context: .
       dockerfile: Dockerfile.dockerfile
     ports:
       - "8000:8000"
-    environment:
-      - DB_HOST=db
     depends_on:
       db:
         condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_NAME: ${DB_NAME:-interior_db}
+      DB_USER: ${DB_APP_USER:-app_user}
+      DB_PASSWORD: ${DB_APP_PASSWORD:-app_password}
 
 volumes:
-  pg_data:
+  postgres_data:
